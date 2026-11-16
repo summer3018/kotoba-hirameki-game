@@ -2,6 +2,12 @@
 
 **1日3分、言葉でひらめく。**
 
+### ▶ 遊ぶ: https://summer3018.github.io/kotoba-hirameki-game/
+
+スマートフォンのブラウザでそのまま開けます。インストール不要・登録不要。
+
+---
+
 日本語の漢字・連想・穴埋めを題材にした、スマートフォン向けの短時間パズルゲームです。
 将来のiOS・Androidアプリ化と収益化を見据えた、**市場検証用のMVP（最小限の試作品）**です。
 
@@ -10,6 +16,17 @@
 - データはすべて端末のブラウザ（localStorage）に保存されます
 
 ![結果画面](docs/shot-complete.png)
+
+---
+
+## 公開について
+
+`main` に push するたびに、GitHub Actions が **問題データの検証 → 自動テスト → ビルド → 公開** を自動で行います。
+どこかで失敗すれば公開は止まるので、壊れた状態が出回ることはありません。
+
+- 公開URL: https://summer3018.github.io/kotoba-hirameki-game/
+- 設定: `.github/workflows/deploy.yml`
+- 反映にかかる時間: push から1分ほど
 
 ---
 
