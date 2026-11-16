@@ -23,9 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 開発機（Node 24）に合わせる。
+      # Node 20 では jsdom が使う undici が zstd 対応を要求して落ちる。
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: 依存パッケージを入れる
