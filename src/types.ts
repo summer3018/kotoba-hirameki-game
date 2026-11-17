@@ -103,3 +103,27 @@ export interface SetSummary {
   hintCount: number;
   score: number;
 }
+
+/**
+ * 今日の5問のテーマつきセット（共通点型）。
+ * 1〜4問目の答えが、すべて1つのテーマでつながっている。5問目でそのテーマを当てる。
+ * データは src/data/theme-sets.json。
+ */
+export interface ThemeSet {
+  /** 例: T-001 */
+  id: string;
+  /** 正解のひらがな。5問目のパネルで組み立てる文字列そのもの */
+  theme: string;
+  /** 正解したときに大きく見せる表記（例: 梅雨） */
+  themeDisplay: string;
+  /** 5問目に並べるひらがなパネル。theme の文字 + まぎらわしい文字3〜5個 */
+  tiles: string[];
+  /** 5問目で間違えたときに順に出すヒント */
+  finalHints: [string, string];
+  /** テーマの解説（正解後・答えを見せたあとに表示） */
+  explanation: string;
+  /** 1〜4問目に出してはいけない言葉（テーマの別の書き方）。theme/themeDisplay は自動で含む */
+  spoilers: string[];
+  /** ちょうど4問。並び順がそのまま出題順（テーマから遠い順） */
+  questions: Question[];
+}

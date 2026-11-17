@@ -1,7 +1,8 @@
-import type { AssocQuestion, FillQuestion, KanjiQuestion, Question } from '../types';
+import type { AssocQuestion, FillQuestion, KanjiQuestion, Question, ThemeSet } from '../types';
 import kanjiRaw from './questions.kanji.json';
 import assocRaw from './questions.assoc.json';
 import fillRaw from './questions.fill.json';
+import themeSetsRaw from './theme-sets.json';
 
 /**
  * 問題データの読み込み口。
@@ -23,3 +24,6 @@ export const ALL_QUESTIONS: Question[] = [
 export function findQuestion(id: string): Question | undefined {
   return ALL_QUESTIONS.find((q) => q.id === id);
 }
+
+/** 今日の5問のテーマつきセット（共通点型） */
+export const THEME_SETS = themeSetsRaw as unknown as ThemeSet[];
