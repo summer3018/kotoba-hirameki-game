@@ -81,6 +81,8 @@ export interface FinalState {
   startedAt: number;
   /** 直前の決定が不正解だったか（カードを一度光らせるのに使う） */
   lastWrong: boolean;
+  /** 5問目が終わった時刻（正解・3回目の不正解）。終わるまでは null */
+  endedAt: number | null;
 }
 
 const SCREEN_TITLES: Record<ScreenName, string> = {
@@ -108,6 +110,11 @@ export class Game {
   newBest = false;
   /** 今日の5問のテーマセット（テストから差し替えられるようにしてある） */
   themeSets: readonly ThemeSet[] = THEME_SETS;
+  /**
+   * 5問目が終わってから「結果を見る」が効くまでの時間（ミリ秒）。
+   * 「決定」の二度押しで正解の演出を飛ばしてしまわないようにする。
+   */
+  revealLockMs = 600;
 
   constructor(private readonly root: HTMLElement) {
     const store = browserStore();
@@ -171,15 +178,24 @@ export class Game {
   dailyStatus(): DailyStatus {
     const data = this.save.get();
     if (todaysRecord(data, this.today)) return 'done';
-    const progress = data.dailyProgress;
-    if (progress && progress.dateKey === this.today && progress.index > 0) return 'in-progress';
+    const progress = this.todaysProgress();
+    if (progress && progress.index > 0) return 'in-progress';
     return 'none';
   }
 
   dailyProgressCount(): number {
-    const progress = this.save.get().dailyProgress;
-    if (!progress || progress.dateKey !== this.today) return 0;
+    const progress = this.todaysProgress();
+    if (!progress) return 0;
     return Math.min(progress.index, SET_SIZE);
+  }
+
+  /** 今日の、今のセットに合う途中経過。旧形式や別のセットのものは「つづき」として扱わない */
+  private todaysProgress() {
+    const progress = this.save.get().dailyProgress;
+    if (!progress || progress.dateKey !== this.today) return null;
+    const setId = pickThemeSet(this.themeSets, this.today)?.id ?? null;
+    if ((progress.setId ?? null) !== setId) return null;
+    return progress;
   }
 
   /* ---------------- セットの開始 ---------------- */
@@ -226,6 +242,7 @@ export class Game {
           solved: false,
           startedAt: Date.now(),
           lastWrong: false,
+          endedAt: null,
         };
         if (progress.final) {
           final.attempts = Math.min(progress.final.attempts, FINAL_MAX_ATTEMPTS);
@@ -418,6 +435,7 @@ export class Game {
       solved: false,
       startedAt: Date.now(),
       lastWrong: false,
+      endedAt: null,
     };
     this.persistDailyProgress();
     this.go('final');
@@ -483,6 +501,7 @@ export class Game {
     f.solved = correct;
     f.lastWrong = !correct;
     f.picked = [];
+    if (this.finalEnded()) f.endedAt = Date.now();
 
     this.log.push({
       name: 'final_attempt',
@@ -502,7 +521,9 @@ export class Game {
   finishFinal(): void {
     const s = this.session;
     const f = s?.final;
-    if (!s || !f || !this.finalEnded()) return;
+    if (!s || !f || !this.finalEnded() || s.summary) return;
+    // 終わった直後の二度押しで、正解の演出を飛ばさない
+    if (f.endedAt !== null && Date.now() - f.endedAt < this.revealLockMs) return;
     this.tap();
     const result: FinalResult = {
       correct: f.solved,

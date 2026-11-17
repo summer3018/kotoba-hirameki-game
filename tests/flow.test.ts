@@ -20,6 +20,8 @@ beforeEach(() => {
 
 function newGame(): Game {
   const game = new Game(root);
+  // テストではボタンを続けて押すので、5問目の「結果を見る」のロックを外しておく
+  game.revealLockMs = 0;
   game.start();
   return game;
 }
@@ -325,6 +327,7 @@ describe('今日の5問（共通点型）', () => {
 
     const again = new Game(root);
     again.themeSets = [set];
+    again.revealLockMs = 0;
     again.start();
     expect(again.dailyStatus()).toBe('in-progress');
     again.startSet('daily');
@@ -399,6 +402,57 @@ describe('今日の5問（共通点型）', () => {
     click('これまでの記録');
     expect(game.screen).toBe('records');
     expect(text()).toContain('5/5');
+  });
+
+  it('5問目に正解した直後の「結果を見る」は、演出を飛ばさないよう少しのあいだ効かない', () => {
+    const set = sampleSet();
+    const game = themedGame(set);
+    game.revealLockMs = 600;
+    game.startSet('daily');
+    playToFinal(game);
+    typeFinal([...set.theme]);
+    click('決定');
+    click('結果を見る');
+    expect(game.screen).toBe('final');
+    expect(text()).toContain(set.themeDisplay);
+  });
+
+  it('結果を見るが2回呼ばれても、プレイ回数は1回分だけ増える', () => {
+    const set = sampleSet();
+    const game = themedGame(set);
+    game.startSet('daily');
+    playToFinal(game);
+    typeFinal([...set.theme]);
+    click('決定');
+    game.finishFinal();
+    game.finishFinal();
+    expect(game.save.get().plays).toBe(1);
+    expect(game.save.get().totalCorrect).toBe(5);
+  });
+
+  it('旧形式の今日の途中経過は「つづき」として出さない', () => {
+    window.localStorage.setItem(
+      'kotoba-hirameki:save:v1',
+      JSON.stringify({
+        dailyProgress: {
+          dateKey: new Game(root).today,
+          questionIds: ['K-001', 'A-001', 'F-001', 'K-002', 'A-002'],
+          index: 2,
+          results: [],
+        },
+      }),
+    );
+    const game = themedGame();
+    expect(game.dailyStatus()).toBe('none');
+    expect(game.dailyProgressCount()).toBe(0);
+    click('あそぶ');
+    expect(text()).not.toContain('つづき');
+  });
+
+  it('タイトルの説明が今日の5問の遊び方に合っている', () => {
+    themedGame();
+    expect(text()).not.toContain('3種類を5問ずつ');
+    expect(text()).toContain('共通するテーマ');
   });
 
   it('練習モードは今までどおり5問で終わる', () => {

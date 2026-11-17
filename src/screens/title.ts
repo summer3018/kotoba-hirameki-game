@@ -26,7 +26,7 @@ export function renderTitle(game: Game): HTMLElement {
       h('p', { class: 'small', text: statusText }),
       data.plays > 0
         ? h('p', { class: 'small', text: `これまでのプレイ: ${data.plays}回 / 正解 ${data.totalCorrect}問` })
-        : h('p', { class: 'small', text: '漢字・連想・穴埋めの3種類を5問ずつ。制限時間はありません。' }),
+        : h('p', { class: 'small', text: '今日の5問は、4問の答えに共通するテーマを最後に当てるパズルです。制限時間はありません。' }),
     ),
     h('div', { class: 'spacer' }),
     h(
