@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "validate": "vite-node scripts/validate-questions.ts",
     "questions:list": "vite-node scripts/export-question-list.ts",
+    "themes:list": "vite-node scripts/export-theme-list.ts",
     "check": "npm run validate && npm run test && npm run build"
   },
   "devDependencies": {
