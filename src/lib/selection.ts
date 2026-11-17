@@ -1,4 +1,4 @@
-import type { GameMode, Question, QuestionType } from '../types';
+import type { GameMode, Question, QuestionType, ThemeSet } from '../types';
 import { hashString, mulberry32, shuffle } from './rng';
 
 export const SET_SIZE = 5;
@@ -94,4 +94,35 @@ export function updateRecent(
 
 export function modeLabelOf(mode: GameMode): string {
   return mode === 'daily' ? '今日の5問' : '練習モード';
+}
+
+/* ---------------- 今日の5問（共通点型） ---------------- */
+
+/** テーマセットを1つ目から出し始める日。この日から1日1セットずつ順に進む */
+export const THEME_EPOCH = '2026-11-17';
+
+function utcDay(key: string): number {
+  const [y, m, d] = key.split('-').map(Number);
+  return Date.UTC(y!, m! - 1, d!) / 86_400_000;
+}
+
+/** 'YYYY-MM-DD' 同士の日数差（b - a）。時差・夏時間の影響を受けないよう UTC で数える */
+export function daysBetween(a: string, b: string): number {
+  return Math.round(utcDay(b) - utcDay(a));
+}
+
+/**
+ * その日のテーマセット。開始日から順に1日1セット、使い切ったら1つ目に戻る。
+ * 開始日より前の日付でも必ずどれかを返す。セットが無ければ null。
+ */
+export function pickThemeSet(
+  sets: readonly ThemeSet[],
+  key: string,
+  epoch: string = THEME_EPOCH,
+): ThemeSet | null {
+  const n = sets.length;
+  if (n === 0) return null;
+  const d = daysBetween(epoch, key);
+  const i = Number.isFinite(d) ? ((d % n) + n) % n : 0;
+  return sets[i] ?? null;
 }

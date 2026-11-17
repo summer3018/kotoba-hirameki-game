@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_QUESTIONS } from '../src/data';
 import { dateKey, mulberry32 } from '../src/lib/rng';
-import { pickDailySet, pickPracticeSet, SET_SIZE, updateRecent } from '../src/lib/selection';
+import {
+  daysBetween,
+  pickDailySet,
+  pickPracticeSet,
+  pickThemeSet,
+  SET_SIZE,
+  THEME_EPOCH,
+  updateRecent,
+} from '../src/lib/selection';
+import { sampleSet } from './fixtures';
 
 const ids = (qs: { id: string }[]): string[] => qs.map((q) => q.id);
 
@@ -97,5 +106,43 @@ describe('日付キー', () => {
   it('ローカル日付をYYYY-MM-DDで返す', () => {
     expect(dateKey(new Date(2026, 10, 17))).toBe('2026-11-17');
     expect(dateKey(new Date(2026, 0, 5))).toBe('2026-01-05');
+  });
+});
+
+describe('テーマセットの選び方', () => {
+  const sets3 = [
+    sampleSet({ id: 'T-A' }),
+    sampleSet({ id: 'T-B' }),
+    sampleSet({ id: 'T-C' }),
+  ];
+
+  it('開始日は1つ目のセット', () => {
+    expect(THEME_EPOCH).toBe('2026-11-17');
+    expect(pickThemeSet(sets3, '2026-11-17')?.id).toBe('T-A');
+  });
+
+  it('1日ごとに次のセット・使い切ったら最初に戻る', () => {
+    expect(pickThemeSet(sets3, '2026-11-18')?.id).toBe('T-B');
+    expect(pickThemeSet(sets3, '2026-11-20')?.id).toBe('T-A');
+  });
+
+  it('開始日より前の日付でもセットが選べる', () => {
+    expect(pickThemeSet(sets3, '2026-11-16')?.id).toBe('T-C');
+    expect(pickThemeSet(sets3, '2020-01-01')).toBeDefined();
+    expect(pickThemeSet(sets3, '2020-01-01')).not.toBeNull();
+  });
+
+  it('同じ日付なら必ず同じセット', () => {
+    expect(pickThemeSet(sets3, '2027-03-05')).toBe(pickThemeSet(sets3, '2027-03-05'));
+  });
+
+  it('セットが無ければ null', () => {
+    expect(pickThemeSet([], '2026-11-17')).toBeNull();
+  });
+
+  it('daysBetween は月・年をまたいでも正しい', () => {
+    expect(daysBetween('2026-12-31', '2027-01-01')).toBe(1);
+    expect(daysBetween('2026-11-17', '2026-11-16')).toBe(-1);
+    expect(daysBetween('2026-11-17', '2027-11-17')).toBe(365);
   });
 });
