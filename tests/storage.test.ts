@@ -77,6 +77,51 @@ describe('保存データの読み込み', () => {
     expect(s.dailyProgress?.results).toHaveLength(1);
   });
 
+  it('format の無い古い記録は classic として読む', () => {
+    const raw = JSON.stringify({
+      daily: [
+        { dateKey: '2026-11-16', correctCount: 3, total: 5, maxStreak: 2, totalMs: 1, hintCount: 0, score: 300 },
+      ],
+    });
+    const rec = parseSave(raw).daily[0]!;
+    expect(rec.format).toBe('classic');
+    expect(rec.score).toBe(300);
+    expect(rec.total).toBe(5);
+    expect(rec.finalCorrect).toBeUndefined();
+  });
+
+  it('5問目の途中経過を保存して読み直せる', () => {
+    const raw = JSON.stringify({
+      dailyProgress: {
+        dateKey: '2026-11-17',
+        questionIds: ['T-001-1'],
+        index: 4,
+        results: [],
+        setId: 'T-001',
+        final: { picked: [2, 0], attempts: 1, given: ['いう'] },
+      },
+    });
+    const p = parseSave(raw).dailyProgress!;
+    expect(p.setId).toBe('T-001');
+    expect(p.final).toEqual({ picked: [2, 0], attempts: 1, given: ['いう'] });
+  });
+
+  it('5問目の途中経過がおかしな値なら捨てるが落ちない', () => {
+    const raw = JSON.stringify({
+      dailyProgress: {
+        dateKey: '2026-11-17',
+        questionIds: ['T-001-1'],
+        index: 4,
+        results: [],
+        setId: 'T-001',
+        final: { picked: 'x', attempts: 'x', given: 3 },
+      },
+    });
+    const p = parseSave(raw).dailyProgress!;
+    expect(p.setId).toBe('T-001');
+    expect(p.final).toBeUndefined();
+  });
+
   it('アンケートの5段階が範囲外なら無効にする', () => {
     const raw = JSON.stringify({ survey: { fun: 99, playAgain: 'maybe', comment: 'よかった' } });
     const s = parseSave(raw);
@@ -110,6 +155,28 @@ describe('SaveStore', () => {
     save.recordDaily(summary({ score: 400 }));
     expect(save.get().daily).toHaveLength(1);
     expect(save.get().daily[0]!.score).toBe(400);
+  });
+
+  it('5問目の無い記録は classic として保存する', () => {
+    const save = new SaveStore(memoryStore());
+    save.recordDaily(summary());
+    expect(save.get().daily[0]!.format).toBe('classic');
+  });
+
+  it('theme の記録を保存して読み直せる', () => {
+    const store = memoryStore();
+    const save = new SaveStore(store);
+    save.recordDaily(
+      summary({
+        setId: 'T-001',
+        final: { correct: true, attempts: 2, points: 150, given: ['あい', 'うみ'], elapsedMs: 9000 },
+      }),
+    );
+    const rec = parseSave(store.getItem(SAVE_KEY)).daily[0]!;
+    expect(rec.format).toBe('theme');
+    expect(rec.setId).toBe('T-001');
+    expect(rec.finalCorrect).toBe(true);
+    expect(rec.finalAttempts).toBe(2);
   });
 
   it('履歴は上限を超えない', () => {

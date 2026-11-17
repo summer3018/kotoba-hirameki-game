@@ -5,6 +5,8 @@ import {
   maxStreakOf,
   POINT_CORRECT,
   POINT_CORRECT_WITH_HINT,
+  FINAL_MAX_ATTEMPTS,
+  finalPointsFor,
   POINT_STREAK_BONUS,
   pointsFor,
   summarize,
@@ -100,5 +102,41 @@ describe('時間の表示', () => {
   it('負の値でも壊れない', () => {
     expect(formatDuration(-100)).toBe('0秒');
     expect(formatSeconds(-100)).toBe('0.0秒');
+  });
+});
+
+describe('5問目（共通点）の点数', () => {
+  it('答えた回数で点数が下がる', () => {
+    expect(FINAL_MAX_ATTEMPTS).toBe(3);
+    expect(finalPointsFor(true, 1)).toBe(200);
+    expect(finalPointsFor(true, 2)).toBe(150);
+    expect(finalPointsFor(true, 3)).toBe(100);
+    expect(finalPointsFor(false, 3)).toBe(0);
+  });
+
+  it('5問目つきの集計', () => {
+    const results = [
+      result(true, { points: 100 }),
+      result(true, { points: 120 }),
+      result(true, { points: 120 }),
+      result(true, { points: 120 }),
+    ];
+    const final = { correct: true, attempts: 1, points: 200, given: ['うみ'], elapsedMs: 5000 };
+    const s = summarize(results, 'daily', '2026-11-17', final, 'T-001');
+    expect(s.total).toBe(5);
+    expect(s.correctCount).toBe(5);
+    expect(s.score).toBe(660);
+    expect(s.maxStreak).toBe(4);
+    expect(s.totalMs).toBe(4 * 1000 + 5000);
+    expect(s.final).toEqual(final);
+    expect(s.setId).toBe('T-001');
+  });
+
+  it('5問目を当てられなかったら正解数にも点数にも入らない', () => {
+    const final = { correct: false, attempts: 3, points: 0, given: ['あ', 'い', 'う'], elapsedMs: 0 };
+    const s = summarize([result(true, { points: 100 })], 'daily', '2026-11-17', final, 'T-001');
+    expect(s.total).toBe(2);
+    expect(s.correctCount).toBe(1);
+    expect(s.score).toBe(100);
   });
 });

@@ -20,6 +20,9 @@ export interface KeyValueStore {
   removeItem(key: string): void;
 }
 
+/** その日の今日の5問の形。classic = 前の版（5問ばらばら）、theme = 共通点型 */
+export type DailyFormat = 'classic' | 'theme';
+
 /** 1日分の結果 */
 export interface DailyRecord {
   dateKey: string;
@@ -29,6 +32,21 @@ export interface DailyRecord {
   totalMs: number;
   hintCount: number;
   score: number;
+  /** 古い記録には無い。読み込むときに classic として補う */
+  format: DailyFormat;
+  setId?: string;
+  finalCorrect?: boolean;
+  finalAttempts?: number;
+}
+
+/** 5問目（共通点）の途中経過 */
+export interface FinalProgress {
+  /** 答えの枠に入れたパネルの位置 */
+  picked: number[];
+  /** 決定を押した回数 */
+  attempts: number;
+  /** 決定を押したときの答え */
+  given: string[];
 }
 
 /** 今日の5問の途中経過 */
@@ -37,6 +55,10 @@ export interface DailyProgress {
   questionIds: string[];
   index: number;
   results: AnswerResult[];
+  /** 共通点型のときのセットID */
+  setId?: string;
+  /** 5問目の途中経過 */
+  final?: FinalProgress;
 }
 
 export interface PracticeBest {
@@ -137,6 +159,12 @@ function parseDaily(v: unknown): DailyRecord[] {
       totalMs: num(raw.totalMs, 0),
       hintCount: num(raw.hintCount, 0),
       score: num(raw.score, 0),
+      format: raw.format === 'theme' ? 'theme' : 'classic',
+      ...(typeof raw.setId === 'string' ? { setId: raw.setId } : {}),
+      ...(typeof raw.finalCorrect === 'boolean' ? { finalCorrect: raw.finalCorrect } : {}),
+      ...(typeof raw.finalAttempts === 'number' && Number.isFinite(raw.finalAttempts)
+        ? { finalAttempts: raw.finalAttempts }
+        : {}),
     });
   }
   return out.slice(0, DAILY_HISTORY_LIMIT);
@@ -148,12 +176,27 @@ function parseProgress(v: unknown): DailyProgress | null {
     ? v.questionIds.filter((x): x is string => typeof x === 'string')
     : [];
   if (ids.length === 0) return null;
-  return {
+  const progress: DailyProgress = {
     dateKey: v.dateKey,
     questionIds: ids,
     index: Math.max(0, Math.floor(num(v.index, 0))),
     results: parseResults(v.results),
   };
+  if (typeof v.setId === 'string') progress.setId = v.setId;
+  const final = parseFinalProgress(v.final);
+  if (final) progress.final = final;
+  return progress;
+}
+
+function parseFinalProgress(v: unknown): FinalProgress | null {
+  if (!isObj(v)) return null;
+  const okInts = (a: unknown): a is number[] =>
+    Array.isArray(a) && a.every((x) => typeof x === 'number' && Number.isInteger(x) && x >= 0);
+  const okStrs = (a: unknown): a is string[] =>
+    Array.isArray(a) && a.every((x) => typeof x === 'string');
+  if (!okInts(v.picked) || !okStrs(v.given)) return null;
+  if (typeof v.attempts !== 'number' || !Number.isInteger(v.attempts) || v.attempts < 0) return null;
+  return { picked: v.picked, attempts: v.attempts, given: v.given };
 }
 
 function parseSurvey(v: unknown): SurveyAnswer | null {
@@ -283,7 +326,13 @@ export class SaveStore {
       totalMs: summary.totalMs,
       hintCount: summary.hintCount,
       score: summary.score,
+      format: summary.final ? 'theme' : 'classic',
     };
+    if (summary.final) {
+      if (summary.setId) rec.setId = summary.setId;
+      rec.finalCorrect = summary.final.correct;
+      rec.finalAttempts = summary.final.attempts;
+    }
     const rest = this.data.daily.filter((d) => d.dateKey !== rec.dateKey);
     const daily = [rec, ...rest]
       .sort((a, b) => (a.dateKey < b.dateKey ? 1 : -1))

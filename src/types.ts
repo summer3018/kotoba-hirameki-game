@@ -92,6 +92,17 @@ export interface AnswerResult {
   points: number;
 }
 
+/** 5問目（共通点のテーマ当て）の結果 */
+export interface FinalResult {
+  correct: boolean;
+  /** 決定を押した回数（1〜3） */
+  attempts: number;
+  points: number;
+  /** 決定を押したときの答え（押した順） */
+  given: string[];
+  elapsedMs: number;
+}
+
 /** 5問ぶんの集計 */
 export interface SetSummary {
   mode: GameMode;
@@ -102,6 +113,10 @@ export interface SetSummary {
   totalMs: number;
   hintCount: number;
   score: number;
+  /** 今日の5問（共通点型）の5問目の結果 */
+  final?: FinalResult;
+  /** 今日の5問（共通点型）のセットID */
+  setId?: string;
 }
 
 /**

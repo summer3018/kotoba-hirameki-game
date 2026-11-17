@@ -1,4 +1,4 @@
-import type { AnswerResult, GameMode, SetSummary } from '../types';
+import type { AnswerResult, FinalResult, GameMode, SetSummary } from '../types';
 
 /** 1問正解の基本点 */
 export const POINT_CORRECT = 100;
@@ -6,6 +6,17 @@ export const POINT_CORRECT = 100;
 export const POINT_CORRECT_WITH_HINT = 50;
 /** 連続正解2問目以降に付く上乗せ */
 export const POINT_STREAK_BONUS = 20;
+
+/** 5問目（共通点）で正解したときの点。1回目・2回目・3回目の順 */
+export const FINAL_POINTS = [200, 150, 100] as const;
+/** 5問目で決定を押せる回数 */
+export const FINAL_MAX_ATTEMPTS = 3;
+
+/** 5問目の点数。attempt は正解したときの回数（1始まり）。ヒントでは減らさない */
+export function finalPointsFor(correct: boolean, attempt: number): number {
+  if (!correct) return 0;
+  return FINAL_POINTS[attempt - 1] ?? 0;
+}
 
 /**
  * 1問ぶんの点数。
@@ -34,17 +45,29 @@ export function summarize(
   results: readonly AnswerResult[],
   mode: GameMode,
   dateKey: string,
+  final?: FinalResult,
+  setId?: string,
 ): SetSummary {
-  return {
+  const summary: SetSummary = {
     mode,
     dateKey,
     correctCount: results.filter((r) => r.correct).length,
     total: results.length,
+    // 連続正解は1〜4問目だけで数える（5問目は別の扱い）
     maxStreak: maxStreakOf(results),
     totalMs: results.reduce((sum, r) => sum + r.elapsedMs, 0),
     hintCount: results.filter((r) => r.hintUsed).length,
     score: results.reduce((sum, r) => sum + r.points, 0),
   };
+  if (final) {
+    summary.total += 1;
+    if (final.correct) summary.correctCount += 1;
+    summary.score += final.points;
+    summary.totalMs += final.elapsedMs;
+    summary.final = final;
+  }
+  if (setId) summary.setId = setId;
+  return summary;
 }
 
 /** ミリ秒を「1分23秒」の形にする */
