@@ -83,6 +83,8 @@ export interface FinalState {
   lastWrong: boolean;
   /** 5問目が終わった時刻（正解・3回目の不正解）。終わるまでは null */
   endedAt: number | null;
+  /** ヒントで開いた、1〜4問目の答えのカードの枚数（1問目から順に開く） */
+  revealed: number;
 }
 
 const SCREEN_TITLES: Record<ScreenName, string> = {
@@ -243,12 +245,14 @@ export class Game {
           startedAt: Date.now(),
           lastWrong: false,
           endedAt: null,
+          revealed: 0,
         };
         if (progress.final) {
           final.attempts = Math.min(progress.final.attempts, FINAL_MAX_ATTEMPTS);
           final.given = progress.final.given.slice(0, final.attempts);
           final.solved = final.given.includes(themeSet.theme);
           final.picked = progress.final.picked.filter((i) => i < themeSet.tiles.length);
+          final.revealed = Math.min(progress.final.revealed, questions.length);
         }
       }
     }
@@ -436,6 +440,7 @@ export class Game {
       startedAt: Date.now(),
       lastWrong: false,
       endedAt: null,
+      revealed: 0,
     };
     this.persistDailyProgress();
     this.go('final');
@@ -477,6 +482,26 @@ export class Game {
     f.picked = [];
     f.lastWrong = false;
     this.tap();
+    this.render();
+  }
+
+  /** 5問目のヒント: 1〜4問目の答えのカードを、1問目から順に1枚開く */
+  revealFinalCard(): void {
+    const s = this.session;
+    const f = s?.final;
+    const set = s?.themeSet;
+    if (!s || !f || !set || this.finalEnded()) return;
+    if (f.revealed >= s.questions.length) return;
+    f.revealed += 1;
+    f.lastWrong = false;
+    this.tap();
+    this.log.push({
+      name: 'hint_used',
+      mode: s.mode,
+      elapsedMs: Date.now() - f.startedAt,
+      detail: { final: true, setId: set.id, revealed: f.revealed },
+    });
+    this.persistDailyProgress();
     this.render();
   }
 
@@ -531,6 +556,7 @@ export class Game {
       points: finalPointsFor(f.solved, f.attempts),
       given: f.given,
       elapsedMs: Math.max(0, Date.now() - f.startedAt),
+      revealed: f.revealed,
     };
     this.finishSet(result);
   }
@@ -554,7 +580,14 @@ export class Game {
         results: s.results,
         ...(s.themeSet ? { setId: s.themeSet.id } : {}),
         ...(s.final
-          ? { final: { picked: s.final.picked, attempts: s.final.attempts, given: s.final.given } }
+          ? {
+              final: {
+                picked: s.final.picked,
+                attempts: s.final.attempts,
+                given: s.final.given,
+                revealed: s.final.revealed,
+              },
+            }
           : {}),
       },
     });

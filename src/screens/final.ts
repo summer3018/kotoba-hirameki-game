@@ -29,13 +29,36 @@ export function renderFinal(game: Game): HTMLElement {
   const left = FINAL_MAX_ATTEMPTS - f.attempts;
   const hintsShown = set.finalHints.slice(0, Math.min(f.attempts, set.finalHints.length));
 
-  const cards = game.answersSoFar().map((a, i) =>
-    h('div', {
-      class: `clue-card ${f.lastWrong ? 'flash' : ''} ${f.solved ? 'solved' : ''}`,
+  // 1〜4問目の答えは伏せておき、ヒントで1問目から順に開く。終わったら全部見せる
+  const answers = game.answersSoFar();
+  const cards = answers.map((a, i) => {
+    const open = ended || i < f.revealed;
+    return h('div', {
+      class: `clue-card ${open ? '' : 'hidden'} ${f.lastWrong ? 'flash' : ''} ${f.solved ? 'solved' : ''}`,
       style: `animation-delay:${i * 60}ms`,
-      text: a,
-    }),
-  );
+      text: open ? a : '？',
+      'aria-label': open ? `${i + 1}問目の答え ${a}` : `${i + 1}問目の答え（ふせてあります）`,
+    });
+  });
+
+  const revealButton =
+    !ended && f.revealed < answers.length
+      ? h('button', {
+          class: 'btn btn-quiet',
+          type: 'button',
+          text: 'ヒントを見る',
+          onClick: () => game.revealFinalCard(),
+        })
+      : null;
+  const revealNote = !ended
+    ? h('p', {
+        class: 'small center',
+        text:
+          f.revealed === 0
+            ? '1〜4問目の答えを思い出してみましょう。ヒントで1つずつ開けます'
+            : `ヒントで ${f.revealed}/${answers.length} 開きました`,
+      })
+    : null;
 
   const top = h(
     'div',
@@ -139,6 +162,8 @@ export function renderFinal(game: Game): HTMLElement {
     progress,
     heading,
     cardRow,
+    revealNote,
+    revealButton,
     f.lastWrong ? h('p', { class: 'final-miss center', text: 'おしい！ もう一度' }) : null,
     hints,
     h('div', { class: 'answer-slots' }, ...slots),

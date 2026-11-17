@@ -121,7 +121,7 @@ describe('5問目（共通点）の点数', () => {
       result(true, { points: 120 }),
       result(true, { points: 120 }),
     ];
-    const final = { correct: true, attempts: 1, points: 200, given: ['うみ'], elapsedMs: 5000 };
+    const final = { correct: true, attempts: 1, points: 200, given: ['うみ'], elapsedMs: 5000, revealed: 0 };
     const s = summarize(results, 'daily', '2026-11-17', final, 'T-001');
     expect(s.total).toBe(5);
     expect(s.correctCount).toBe(5);
@@ -133,7 +133,7 @@ describe('5問目（共通点）の点数', () => {
   });
 
   it('5問目を当てられなかったら正解数にも点数にも入らない', () => {
-    const final = { correct: false, attempts: 3, points: 0, given: ['あ', 'い', 'う'], elapsedMs: 0 };
+    const final = { correct: false, attempts: 3, points: 0, given: ['あ', 'い', 'う'], elapsedMs: 0, revealed: 0 };
     const s = summarize([result(true, { points: 100 })], 'daily', '2026-11-17', final, 'T-001');
     expect(s.total).toBe(2);
     expect(s.correctCount).toBe(1);

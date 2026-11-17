@@ -47,6 +47,8 @@ export interface FinalProgress {
   attempts: number;
   /** 決定を押したときの答え */
   given: string[];
+  /** ヒントで開いたカードの枚数 */
+  revealed: number;
 }
 
 /** 今日の5問の途中経過 */
@@ -196,7 +198,9 @@ function parseFinalProgress(v: unknown): FinalProgress | null {
     Array.isArray(a) && a.every((x) => typeof x === 'string');
   if (!okInts(v.picked) || !okStrs(v.given)) return null;
   if (typeof v.attempts !== 'number' || !Number.isInteger(v.attempts) || v.attempts < 0) return null;
-  return { picked: v.picked, attempts: v.attempts, given: v.given };
+  const revealed =
+    typeof v.revealed === 'number' && Number.isInteger(v.revealed) && v.revealed >= 0 ? v.revealed : 0;
+  return { picked: v.picked, attempts: v.attempts, given: v.given, revealed };
 }
 
 function parseSurvey(v: unknown): SurveyAnswer | null {

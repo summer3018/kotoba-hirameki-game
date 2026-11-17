@@ -245,6 +245,9 @@ describe('今日の5問', () => {
 });
 
 describe('今日の5問（共通点型）', () => {
+  /** テスト用セット（sampleSet）の1〜4問目の答え */
+  const ANSWERS = ['砂浜', 'くじら', 'なみのり', 'かもめ'];
+
   function themedGame(set: ThemeSet = sampleSet()): Game {
     const game = newGame();
     game.themeSets = [set];
@@ -258,17 +261,20 @@ describe('今日の5問（共通点型）', () => {
     expect(game.session!.questions.map((q) => q.id)).toEqual(set.questions.map((q) => q.id));
     playToFinal(game);
     expect(text()).toContain('この4つに共通するのは');
-    for (const a of ['砂浜', 'くじら', 'なみのり', 'かもめ']) expect(text()).toContain(a);
 
     typeFinal([...set.theme]);
     click('決定');
     expect(text()).toContain(set.themeDisplay);
     expect(text()).toContain(set.explanation);
+    // 終わったら、伏せていた答えも全部見える
+    for (const a of ANSWERS) expect(text()).toContain(a);
     click('結果を見る');
 
     expect(game.screen).toBe('complete');
     expect(text()).toContain(set.themeDisplay);
     expect(text()).toContain('1回目');
+    expect(text()).toContain('ヒントなし');
+    expect(game.session!.summary!.final!.revealed).toBe(0);
     const rec = game.save.get().daily[0]!;
     expect(rec.format).toBe('theme');
     expect(rec.setId).toBe(set.id);
@@ -279,16 +285,56 @@ describe('今日の5問（共通点型）', () => {
     expect(game.log.all().some((e) => e.name === 'final_attempt')).toBe(true);
   });
 
-  it('4問目の解説の画面に、ここまでの答えが並ぶ', () => {
+  it('4問目の解説の画面には、ここまでの答えの一覧を出さない', () => {
     const game = themedGame();
     game.startSet('daily');
     for (let i = 0; i < 3; i += 1) {
       answerCurrent(game, true);
       click('次の問題へ');
     }
-    answerCurrent(game, false);
-    expect(text()).toContain('ここまでの答え');
-    for (const a of ['砂浜', 'くじら', 'なみのり', 'かもめ']) expect(text()).toContain(a);
+    answerCurrent(game, true);
+    expect(text()).not.toContain('ここまでの答え');
+    expect(text()).not.toContain('砂浜');
+  });
+
+  it('5問目は最初、1〜4問目の答えを伏せている', () => {
+    const game = themedGame();
+    game.startSet('daily');
+    playToFinal(game);
+    for (const a of ANSWERS) expect(text()).not.toContain(a);
+    expect(root.querySelectorAll('.clue-card.hidden')).toHaveLength(4);
+  });
+
+  it('「ヒントを見る」を押すたびに、1問目から順に答えが1つずつ開く', () => {
+    const game = themedGame();
+    game.startSet('daily');
+    playToFinal(game);
+    click('ヒントを見る');
+    expect(text()).toContain('砂浜');
+    expect(text()).not.toContain('くじら');
+    click('ヒントを見る');
+    click('ヒントを見る');
+    expect(text()).toContain('なみのり');
+    expect(text()).not.toContain('かもめ');
+    click('ヒントを見る');
+    for (const a of ANSWERS) expect(text()).toContain(a);
+    expect(buttons().some((b) => b.textContent?.trim() === 'ヒントを見る')).toBe(false);
+    expect(game.log.all().some((e) => e.name === 'hint_used' && e.detail?.final === true)).toBe(true);
+  });
+
+  it('開いた枚数は結果に残り、「ヒントなし」とは出ない', () => {
+    const set = sampleSet();
+    const game = themedGame(set);
+    game.startSet('daily');
+    playToFinal(game);
+    click('ヒントを見る');
+    click('ヒントを見る');
+    typeFinal([...set.theme]);
+    click('決定');
+    click('結果を見る');
+    expect(game.session!.summary!.final!.revealed).toBe(2);
+    expect(game.session!.summary!.final!.points).toBe(200);
+    expect(text()).not.toContain('ヒントなし');
   });
 
   it('3回まちがえると正解が見えて結果画面に進める', () => {
@@ -322,6 +368,7 @@ describe('今日の5問（共通点型）', () => {
     const game = themedGame(set);
     game.startSet('daily');
     playToFinal(game);
+    click('ヒントを見る');
     typeFinal(wrongFinal(set));
     click('決定');
 
@@ -336,6 +383,10 @@ describe('今日の5問（共通点型）', () => {
     expect(again.session!.results).toHaveLength(4);
     expect(text()).toContain(set.finalHints[0]);
     expect(text()).toContain('あと2回');
+    // 開いたカードも残る
+    expect(again.session!.final!.revealed).toBe(1);
+    expect(text()).toContain('砂浜');
+    expect(text()).not.toContain('くじら');
 
     typeFinal([...set.theme]);
     click('決定');

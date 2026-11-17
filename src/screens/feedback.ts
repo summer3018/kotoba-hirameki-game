@@ -28,7 +28,6 @@ export function renderFeedback(game: Game): HTMLElement {
 
   const isLast = s.index + 1 >= s.questions.length;
   const toFinal = isLast && s.themeSet !== null;
-  const soFar = game.answersSoFar();
 
   return screen(
     'screen-feedback',
@@ -72,16 +71,6 @@ export function renderFeedback(game: Game): HTMLElement {
       statRow('この問題の点数', `${result.points}点`),
       result.hintUsed ? statRow('ヒント', '使用しました') : null,
     ),
-
-    soFar.length > 0
-      ? h(
-          'div',
-          { class: 'so-far' },
-          h('span', { class: 'small', text: 'ここまでの答え' }),
-          h('div', { class: 'so-far-list' }, ...soFar.map((a) => h('span', { class: 'chip', text: a }))),
-          toFinal ? h('p', { class: 'small', text: 'この4つに共通するものは何でしょう？' }) : null,
-        )
-      : null,
 
     h('div', { class: 'spacer' }),
 

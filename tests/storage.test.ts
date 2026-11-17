@@ -103,7 +103,7 @@ describe('保存データの読み込み', () => {
     });
     const p = parseSave(raw).dailyProgress!;
     expect(p.setId).toBe('T-001');
-    expect(p.final).toEqual({ picked: [2, 0], attempts: 1, given: ['いう'] });
+    expect(p.final).toEqual({ picked: [2, 0], attempts: 1, given: ['いう'], revealed: 0 });
   });
 
   it('5問目の途中経過がおかしな値なら捨てるが落ちない', () => {
@@ -169,7 +169,7 @@ describe('SaveStore', () => {
     save.recordDaily(
       summary({
         setId: 'T-001',
-        final: { correct: true, attempts: 2, points: 150, given: ['あい', 'うみ'], elapsedMs: 9000 },
+        final: { correct: true, attempts: 2, points: 150, given: ['あい', 'うみ'], elapsedMs: 9000, revealed: 0 },
       }),
     );
     const rec = parseSave(store.getItem(SAVE_KEY)).daily[0]!;

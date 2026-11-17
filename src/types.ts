@@ -101,6 +101,8 @@ export interface FinalResult {
   /** 決定を押したときの答え（押した順） */
   given: string[];
   elapsedMs: number;
+  /** ヒントで開いた、1〜4問目の答えのカードの枚数 */
+  revealed: number;
 }
 
 /** 5問ぶんの集計 */

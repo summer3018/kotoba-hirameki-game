@@ -42,7 +42,9 @@ export function renderComplete(game: Game): HTMLElement {
           { class: `final-banner ${final.correct ? 'solved' : ''}` },
           h('div', {
             class: 'small',
-            text: final.correct ? `テーマを当てた！（${final.attempts}回目）` : 'テーマは…',
+            text: final.correct
+              ? `テーマを当てた！（${final.attempts}回目${final.revealed === 0 ? '・ヒントなし' : ''}）`
+              : 'テーマは…',
           }),
           h('div', { class: 'final-theme', text: themeSet.themeDisplay }),
         )
