@@ -27,10 +27,12 @@ export function renderFeedback(game: Game): HTMLElement {
   }
 
   const isLast = s.index + 1 >= s.questions.length;
+  const toFinal = isLast && s.themeSet !== null;
+  const soFar = game.answersSoFar();
 
   return screen(
     'screen-feedback',
-    h('div', { class: 'topbar' }, h('span', { class: 'badge', text: `${s.index + 1}/${s.questions.length}` })),
+    h('div', { class: 'topbar' }, h('span', { class: 'badge', text: `${s.index + 1}/${game.totalSteps()}` })),
 
     result.correct
       ? h(
@@ -71,12 +73,22 @@ export function renderFeedback(game: Game): HTMLElement {
       result.hintUsed ? statRow('ヒント', '使用しました') : null,
     ),
 
+    soFar.length > 0
+      ? h(
+          'div',
+          { class: 'so-far' },
+          h('span', { class: 'small', text: 'ここまでの答え' }),
+          h('div', { class: 'so-far-list' }, ...soFar.map((a) => h('span', { class: 'chip', text: a }))),
+          toFinal ? h('p', { class: 'small', text: 'この4つに共通するものは何でしょう？' }) : null,
+        )
+      : null,
+
     h('div', { class: 'spacer' }),
 
     h('button', {
       class: 'btn btn-primary',
       type: 'button',
-      text: isLast ? '結果を見る' : '次の問題へ',
+      text: toFinal ? '5問目へ' : isLast ? '結果を見る' : '次の問題へ',
       onClick: () => game.next(),
     }),
   );

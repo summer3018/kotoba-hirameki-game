@@ -17,7 +17,9 @@ export function renderRecords(game: Game): HTMLElement {
         h('div', { class: 'date', text: formatDate(d.dateKey) }),
         h('div', {
           class: 'small',
-          text: `${formatDuration(d.totalMs)}・最大${d.maxStreak}連続${d.hintCount > 0 ? `・ヒント${d.hintCount}回` : ''}`,
+          text: `${formatDuration(d.totalMs)}・最大${d.maxStreak}連続${d.hintCount > 0 ? `・ヒント${d.hintCount}回` : ''}${
+            d.format === 'theme' ? (d.finalCorrect ? '・テーマ○' : '・テーマ×') : ''
+          }`,
         }),
       ),
       h(

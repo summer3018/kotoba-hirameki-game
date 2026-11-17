@@ -33,6 +33,21 @@ export function renderComplete(game: Game): HTMLElement {
         ? 'いい調子です。'
         : 'おつかれさまでした。答えを知れば次はひらめきます。';
 
+  const final = summary.final ?? null;
+  const themeSet = s.themeSet;
+  const themeBanner =
+    final && themeSet
+      ? h(
+          'div',
+          { class: `final-banner ${final.correct ? 'solved' : ''}` },
+          h('div', {
+            class: 'small',
+            text: final.correct ? `テーマを当てた！（${final.attempts}回目）` : 'テーマは…',
+          }),
+          h('div', { class: 'final-theme', text: themeSet.themeDisplay }),
+        )
+      : null;
+
   const reviews = game.reviewRows().map(({ result, question }) =>
     h(
       'div',
@@ -54,6 +69,7 @@ export function renderComplete(game: Game): HTMLElement {
     ),
 
     h('h1', { class: 'center', text: '5問おわり' }),
+    themeBanner,
     h(
       'div',
       { class: 'score-big' },
@@ -72,7 +88,21 @@ export function renderComplete(game: Game): HTMLElement {
     ),
 
     h('h2', { text: 'ふりかえり' }),
-    h('div', { class: 'review-list' }, ...reviews),
+    h(
+      'div',
+      { class: 'review-list' },
+      ...reviews,
+      final && themeSet
+        ? h(
+            'div',
+            { class: 'review-item' },
+            h('span', { class: `mark ${final.correct ? 'ok' : 'ng'}`, text: final.correct ? '○' : '×' }),
+            h('span', { class: 'word', text: themeSet.themeDisplay }),
+            h('span', { class: 'small', text: '5問目 共通点' }),
+            h('span', { class: 'meta', text: formatSeconds(final.elapsedMs) }),
+          )
+        : null,
+    ),
 
     game.shouldOfferSurvey() ? surveyInvite(game) : null,
 

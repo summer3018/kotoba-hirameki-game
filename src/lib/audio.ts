@@ -6,7 +6,7 @@
  * 「最初のタップ／クリック」が起きるまで作らない。
  */
 
-export type SfxName = 'tap' | 'correct' | 'incorrect' | 'clear';
+export type SfxName = 'tap' | 'correct' | 'incorrect' | 'clear' | 'finale';
 
 interface Tone {
   freq: number;
@@ -38,6 +38,17 @@ const PATTERNS: Record<SfxName, Tone[]> = {
     { freq: 659, at: 0.1, dur: 0.12, type: 'sine', gain: 0.18 },
     { freq: 784, at: 0.2, dur: 0.14, type: 'sine', gain: 0.18 },
     { freq: 1047, at: 0.33, dur: 0.34, type: 'sine', gain: 0.2 },
+  ],
+  // 5問目の正解音：かけ上がる音のあとに和音を重ねて、いちばん大きな「わかった！」に
+  finale: [
+    { freq: 523, at: 0, dur: 0.08, type: 'sine', gain: 0.16 },
+    { freq: 659, at: 0.06, dur: 0.08, type: 'sine', gain: 0.16 },
+    { freq: 784, at: 0.12, dur: 0.08, type: 'sine', gain: 0.16 },
+    { freq: 1047, at: 0.18, dur: 0.1, type: 'sine', gain: 0.18 },
+    { freq: 1319, at: 0.24, dur: 0.1, type: 'sine', gain: 0.18 },
+    { freq: 1047, at: 0.36, dur: 0.6, type: 'triangle', gain: 0.16 },
+    { freq: 1319, at: 0.36, dur: 0.6, type: 'sine', gain: 0.12 },
+    { freq: 1568, at: 0.36, dur: 0.7, type: 'sine', gain: 0.12 },
   ],
 };
 

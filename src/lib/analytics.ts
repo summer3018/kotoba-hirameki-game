@@ -24,7 +24,8 @@ export type EventName =
   | 'set_complete'
   | 'hint_used'
   | 'replay_start'
-  | 'survey_submit';
+  | 'survey_submit'
+  | 'final_attempt';
 
 export interface GameEvent {
   /** イベント発生時刻（ISO8601） */

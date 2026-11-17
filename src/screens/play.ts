@@ -46,7 +46,7 @@ export function renderPlay(game: Game): HTMLElement {
       h(
         'div',
         { class: 'stack', style: 'gap:4px;align-items:flex-end' },
-        h('span', { class: 'badge', text: `${MODE_LABEL[s.mode]} ${s.index + 1}/${s.questions.length}` }),
+        h('span', { class: 'badge', text: `${MODE_LABEL[s.mode]} ${s.index + 1}/${game.totalSteps()}` }),
         streak >= 2 ? h('span', { class: 'badge', text: `${streak}問つづけて正解中` }) : null,
       ),
     ),
@@ -90,6 +90,8 @@ function progressBar(game: Game): HTMLElement {
       r !== undefined ? (r.correct ? 'done-correct' : 'done-wrong') : i === s.index ? 'current' : '';
     return h('span', { class: cls });
   });
+  // 共通点型は、最後に5問目のマスを足す
+  if (s.themeSet) cells.push(h('span', { class: 'final-cell' }));
   return h('div', { class: 'progress', 'aria-hidden': 'true' }, ...cells);
 }
 

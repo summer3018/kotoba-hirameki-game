@@ -2,7 +2,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Game } from '../src/app';
 import { SET_SIZE } from '../src/lib/selection';
-import type { Question } from '../src/types';
+import type { Question, ThemeSet } from '../src/types';
+import { sampleSet } from './fixtures';
 
 /**
  * 画面を実際に組み立てて、ボタンを押して最後まで進めるかを確かめる。
@@ -77,6 +78,56 @@ function wrongKanji(q: Extract<Question, { type: 'kanji' }>): string[] {
   return [other, ...[...q.answer].slice(1, len)];
 }
 
+/** 5問目のパネルを、文字の並びどおりに押す（同じ文字が複数あってもよい） */
+function typeFinal(chars: string[]): void {
+  for (const c of chars) {
+    const tile = buttons().find(
+      (b) => b.classList.contains('final-tile') && !b.classList.contains('used') && b.textContent === c,
+    );
+    if (!tile) throw new Error(`パネル「${c}」が見つかりません`);
+    tile.click();
+  }
+}
+
+/** 正解にならない並び */
+function wrongFinal(set: ThemeSet): string[] {
+  const chars = [...set.theme];
+  const reversed = [...chars].reverse();
+  if (reversed.join('') !== set.theme) return reversed;
+  const pool = [...set.tiles];
+  for (const c of chars) pool.splice(pool.indexOf(c), 1);
+  return pool.slice(0, chars.length);
+}
+
+/** 今日の5問（共通点型）の1〜4問目を答えて、5問目の画面まで進める */
+function playToFinal(game: Game, pattern: boolean[] = [true, true, true, true]): void {
+  const n = game.session!.questions.length;
+  for (let i = game.session!.index; i < n; i += 1) {
+    expect(game.screen, `${i + 1}問目が表示されていない`).toBe('play');
+    answerCurrent(game, pattern[i] ?? true);
+    expect(game.screen).toBe('feedback');
+    click(i === n - 1 ? '5問目へ' : '次の問題へ');
+  }
+  expect(game.screen).toBe('final');
+}
+
+/** 今日の5問（共通点型）を最後まで進める */
+function playDaily(game: Game, pattern: boolean[] = [true, true, true, true], finalCorrect = true): void {
+  playToFinal(game, pattern);
+  const set = game.session!.themeSet!;
+  if (finalCorrect) {
+    typeFinal([...set.theme]);
+    click('決定');
+  } else {
+    for (let i = 0; i < 3; i += 1) {
+      typeFinal(wrongFinal(set));
+      click('決定');
+    }
+  }
+  click('結果を見る');
+  expect(game.screen).toBe('complete');
+}
+
 /** 5問を最後まで進める */
 function playSet(game: Game, pattern: boolean[]): void {
   for (let i = 0; i < SET_SIZE; i += 1) {
@@ -100,7 +151,7 @@ describe('基本の流れ', () => {
     click('はじめる'); // 今日の5問
     expect(game.screen).toBe('play');
 
-    playSet(game, [true, true, true, true, true]);
+    playDaily(game);
     expect(text()).toContain('5問おわり');
     expect(game.session?.summary?.correctCount).toBe(5);
   });
@@ -173,7 +224,7 @@ describe('今日の5問', () => {
   it('解き終えると済み扱いになり、記録に残る', () => {
     const game = newGame();
     game.startSet('daily');
-    playSet(game, [true, true, false, true, true]);
+    playDaily(game, [true, true, false, true], true);
     expect(game.dailyStatus()).toBe('done');
     expect(game.save.get().daily).toHaveLength(1);
     expect(game.save.get().daily[0]!.correctCount).toBe(4);
@@ -182,12 +233,179 @@ describe('今日の5問', () => {
   it('今日の分を終えたあとも練習モードは遊べる', () => {
     const game = newGame();
     game.startSet('daily');
-    playSet(game, [true, true, true, true, true]);
+    playDaily(game);
 
     click('練習モードで もう5問');
     expect(game.screen).toBe('play');
     playSet(game, [true, true, true, true, true]);
     expect(game.save.get().plays).toBe(2);
+  });
+});
+
+describe('今日の5問（共通点型）', () => {
+  function themedGame(set: ThemeSet = sampleSet()): Game {
+    const game = newGame();
+    game.themeSets = [set];
+    return game;
+  }
+
+  it('4問のあと5問目に進み、1回目で正解すると結果画面に出る', () => {
+    const set = sampleSet();
+    const game = themedGame(set);
+    game.startSet('daily');
+    expect(game.session!.questions.map((q) => q.id)).toEqual(set.questions.map((q) => q.id));
+    playToFinal(game);
+    expect(text()).toContain('この4つに共通するのは');
+    for (const a of ['砂浜', 'くじら', 'なみのり', 'かもめ']) expect(text()).toContain(a);
+
+    typeFinal([...set.theme]);
+    click('決定');
+    expect(text()).toContain(set.themeDisplay);
+    expect(text()).toContain(set.explanation);
+    click('結果を見る');
+
+    expect(game.screen).toBe('complete');
+    expect(text()).toContain(set.themeDisplay);
+    expect(text()).toContain('1回目');
+    const rec = game.save.get().daily[0]!;
+    expect(rec.format).toBe('theme');
+    expect(rec.setId).toBe(set.id);
+    expect(rec.finalCorrect).toBe(true);
+    expect(rec.finalAttempts).toBe(1);
+    expect(game.session!.summary!.total).toBe(5);
+    expect(game.session!.summary!.score).toBe(100 + 120 * 3 + 200);
+    expect(game.log.all().some((e) => e.name === 'final_attempt')).toBe(true);
+  });
+
+  it('4問目の解説の画面に、ここまでの答えが並ぶ', () => {
+    const game = themedGame();
+    game.startSet('daily');
+    for (let i = 0; i < 3; i += 1) {
+      answerCurrent(game, true);
+      click('次の問題へ');
+    }
+    answerCurrent(game, false);
+    expect(text()).toContain('ここまでの答え');
+    for (const a of ['砂浜', 'くじら', 'なみのり', 'かもめ']) expect(text()).toContain(a);
+  });
+
+  it('3回まちがえると正解が見えて結果画面に進める', () => {
+    const set = sampleSet();
+    const game = themedGame(set);
+    game.startSet('daily');
+    playToFinal(game);
+
+    typeFinal(wrongFinal(set));
+    click('決定');
+    expect(text()).toContain(set.finalHints[0]);
+    expect(text()).not.toContain(set.finalHints[1]);
+    typeFinal(wrongFinal(set));
+    click('決定');
+    expect(text()).toContain(set.finalHints[0]);
+    expect(text()).toContain(set.finalHints[1]);
+    typeFinal(wrongFinal(set));
+    click('決定');
+
+    expect(text()).toContain(set.themeDisplay);
+    expect(buttons().some((b) => b.textContent?.trim() === '決定')).toBe(false);
+    click('結果を見る');
+    const rec = game.save.get().daily[0]!;
+    expect(rec.finalCorrect).toBe(false);
+    expect(rec.finalAttempts).toBe(3);
+    expect(game.session!.summary!.score).toBe(100 + 120 * 3);
+  });
+
+  it('5問目の途中で閉じても、答えた回数とヒントが残って再開できる', () => {
+    const set = sampleSet();
+    const game = themedGame(set);
+    game.startSet('daily');
+    playToFinal(game);
+    typeFinal(wrongFinal(set));
+    click('決定');
+
+    const again = new Game(root);
+    again.themeSets = [set];
+    again.start();
+    expect(again.dailyStatus()).toBe('in-progress');
+    again.startSet('daily');
+    expect(again.screen).toBe('final');
+    expect(again.session!.final!.attempts).toBe(1);
+    expect(again.session!.results).toHaveLength(4);
+    expect(text()).toContain(set.finalHints[0]);
+    expect(text()).toContain('あと2回');
+
+    typeFinal([...set.theme]);
+    click('決定');
+    click('結果を見る');
+    expect(again.save.get().daily[0]!.finalAttempts).toBe(2);
+    expect(again.session!.summary!.final!.points).toBe(150);
+  });
+
+  it('同じ文字が2枚あるパネルは両方使える', () => {
+    const set = sampleSet({ theme: 'ここ', themeDisplay: '此処', tiles: ['こ', 'あ', 'こ', 'い', 'う'] });
+    const game = themedGame(set);
+    game.startSet('daily');
+    playToFinal(game);
+    typeFinal(['こ', 'こ']);
+    click('決定');
+    expect(game.session!.final!.solved).toBe(true);
+  });
+
+  it('「1文字もどす」「すべて消す」で入れた文字を取り消せる', () => {
+    const game = themedGame();
+    game.startSet('daily');
+    playToFinal(game);
+    typeFinal(['み']);
+    click('1文字もどす');
+    expect(game.session!.final!.picked).toEqual([]);
+    typeFinal(['う', 'み']);
+    click('すべて消す');
+    expect(game.session!.final!.picked).toEqual([]);
+    typeFinal(['う', 'み']);
+    click('決定');
+    expect(game.session!.final!.solved).toBe(true);
+  });
+
+  it('旧形式の今日の途中経過が残っていても、テーマセットを最初から始める', () => {
+    const set = sampleSet();
+    window.localStorage.setItem(
+      'kotoba-hirameki:save:v1',
+      JSON.stringify({
+        dailyProgress: {
+          dateKey: new Game(root).today,
+          questionIds: ['K-001', 'A-001', 'F-001', 'K-002', 'A-002'],
+          index: 2,
+          results: [],
+        },
+      }),
+    );
+    const game = themedGame(set);
+    game.startSet('daily');
+    expect(game.session!.index).toBe(0);
+    expect(game.currentQuestion()!.id).toBe(set.questions[0]!.id);
+  });
+
+  it('旧形式で今日を解き終えていても落ちない', () => {
+    const today = new Game(root).today;
+    window.localStorage.setItem(
+      'kotoba-hirameki:save:v1',
+      JSON.stringify({
+        daily: [{ dateKey: today, correctCount: 5, total: 5, maxStreak: 5, totalMs: 1, hintCount: 0, score: 580 }],
+      }),
+    );
+    const game = themedGame();
+    expect(game.dailyStatus()).toBe('done');
+    expect(game.screen).toBe('title');
+    click('これまでの記録');
+    expect(game.screen).toBe('records');
+    expect(text()).toContain('5/5');
+  });
+
+  it('練習モードは今までどおり5問で終わる', () => {
+    const game = themedGame();
+    game.startSet('practice');
+    playSet(game, [true, true, true, true, true]);
+    expect(game.session!.summary!.final).toBeUndefined();
   });
 });
 
