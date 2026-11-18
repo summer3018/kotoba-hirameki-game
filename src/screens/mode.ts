@@ -1,5 +1,11 @@
 import type { Game } from '../app';
 import { h, screen } from '../lib/dom';
+import {
+  FINAL_POINTS,
+  POINT_CORRECT,
+  POINT_CORRECT_WITH_HINT,
+  POINT_STREAK_BONUS,
+} from '../lib/scoring';
 import { todaysRecord } from '../lib/storage';
 
 export function renderMode(game: Game): HTMLElement {
@@ -86,10 +92,29 @@ export function renderMode(game: Game): HTMLElement {
       }),
     ),
 
+    scoreRules(),
+
     h('div', { class: 'spacer' }),
     h('p', {
       class: 'note',
       text: '時間制限はありません。落ち着いて考えてください。',
     }),
+  );
+}
+
+/** はじめる前に見せる、点数のきまり */
+function scoreRules(): HTMLElement {
+  const [first, second, third] = FINAL_POINTS;
+  const items = [
+    `1〜4問目: 正解 ${POINT_CORRECT}点（ヒントを使うと ${POINT_CORRECT_WITH_HINT}点）`,
+    `つづけて正解すると、2問目から +${POINT_STREAK_BONUS}点`,
+    `5問目（今日の5問だけ）: 1回目で当てると ${first}点・2回目 ${second}点・3回目 ${third}点。ヒントで答えを開いても減りません`,
+    'かかった時間は点数に関係ありません',
+  ];
+  return h(
+    'div',
+    { class: 'card stack' },
+    h('h2', { text: '点数のきまり' }),
+    h('ul', { class: 'rule-list' }, ...items.map((t) => h('li', { class: 'small', text: t }))),
   );
 }

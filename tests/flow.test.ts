@@ -158,6 +158,18 @@ describe('基本の流れ', () => {
     expect(game.session?.summary?.correctCount).toBe(5);
   });
 
+  it('はじめる前に、点数のきまりと「時間は点数に関係ない」ことを見せる', () => {
+    newGame();
+    click('あそぶ');
+    const t = text();
+    expect(t).toContain('点数のきまり');
+    expect(t).toContain('正解 100点');
+    expect(t).toContain('ヒントを使うと 50点');
+    expect(t).toContain('+20点');
+    expect(t).toContain('200点');
+    expect(t).toContain('かかった時間は点数に関係ありません');
+  });
+
   it('練習モードも最後まで進める', () => {
     const game = newGame();
     game.startSet('practice');
@@ -253,6 +265,31 @@ describe('今日の5問（共通点型）', () => {
     game.themeSets = [set];
     return game;
   }
+
+  it('タップする場所はデータの並びのままにしない（正解が先頭に固まらない）', () => {
+    const set = sampleSet();
+    const game = themedGame(set);
+    game.startSet('daily');
+    const s = game.session!;
+    const k = s.questions[0]!;
+    if (k.type !== 'kanji') throw new Error('1問目は漢字のはず');
+    expect([...k.tiles].sort()).toEqual([...(set.questions[0] as typeof k).tiles].sort());
+    expect(k.tiles.join('')).not.toContain(k.answer);
+    expect([...s.themeSet!.tiles].sort()).toEqual([...set.tiles].sort());
+    expect(s.themeSet!.tiles.join('')).not.toContain(set.theme);
+    // 元のセットは書き換えない
+    expect(game.themeSets[0]!.tiles).toEqual(set.tiles);
+  });
+
+  it('同じ日に開き直しても、タップする場所の並びは変わらない', () => {
+    const game = themedGame();
+    game.startSet('daily');
+    const first = game.session!;
+    const again = themedGame();
+    again.startSet('daily');
+    expect(again.session!.questions).toEqual(first.questions);
+    expect(again.session!.themeSet!.tiles).toEqual(first.themeSet!.tiles);
+  });
 
   it('4問のあと5問目に進み、1回目で正解すると結果画面に出る', () => {
     const set = sampleSet();

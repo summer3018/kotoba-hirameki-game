@@ -2,7 +2,8 @@ import { ALL_QUESTIONS, THEME_SETS } from './data';
 import { EventLog } from './lib/analytics';
 import { Sfx } from './lib/audio';
 import { announce, clear } from './lib/dom';
-import { dateKey, mulberry32, shuffle } from './lib/rng';
+import { arrangeQuestion, arrangeTiles } from './lib/arrange';
+import { dateKey, hashString, mulberry32, shuffle } from './lib/rng';
 import {
   pickDailySet,
   pickPracticeSet,
@@ -204,13 +205,21 @@ export class Game {
 
   startSet(mode: GameMode): void {
     this.newBest = false;
-    const themeSet = mode === 'daily' ? pickThemeSet(this.themeSets, this.today) : null;
-    const questions =
+    const picked = mode === 'daily' ? pickThemeSet(this.themeSets, this.today) : null;
+    // タップする場所（パネル・選択肢）の並びを入れ替える。
+    // 今日の5問は日付と問題IDから種を作るので、開き直しても同じ並びになる
+    const randFor = (key: string): (() => number) =>
+      mode === 'daily' ? mulberry32(hashString(`${this.today}:${key}`)) : Math.random;
+    const themeSet = picked
+      ? { ...picked, tiles: arrangeTiles(picked.tiles, picked.theme, randFor(picked.id)) }
+      : null;
+    const questions = (
       mode === 'daily'
         ? themeSet
           ? [...themeSet.questions]
           : this.dailyQuestions()
-        : this.practiceQuestions();
+        : this.practiceQuestions()
+    ).map((q) => arrangeQuestion(q, randFor(q.id)));
 
     let index = 0;
     let results: AnswerResult[] = [];
